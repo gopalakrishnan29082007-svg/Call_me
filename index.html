@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0710">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Crypt Calc">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Crypt Calc</title>
+<style>
+:root{--void:#0b0710;--stone:#2a2433;--stone2:#1a1522;--edge:#3d3449;--bone:#e9e1cf;--blood:#b3121f;--blood2:#6e0a13;--pumpkin:#ff7a1a;--ghost:#8d8399}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{height:100%;margin:0}
+body{background:radial-gradient(ellipse at 50% -10%,#2b1538 0%,var(--void) 60%);color:var(--bone);font-family:Georgia,"Palatino Linotype",Palatino,serif;display:flex;justify-content:center;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);overflow:hidden}
+.app{position:relative;width:100%;max-width:430px;height:100%;display:flex;flex-direction:column;padding:14px}
+.moon{position:absolute;top:-70px;right:-40px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle at 40% 40%,#f4ecd0,#cfc49b 55%,transparent 72%);opacity:.22;filter:blur(2px);animation:flicker 5s infinite;pointer-events:none}
+.title{font-style:italic;letter-spacing:.18em;color:var(--ghost);font-size:.95rem;margin:4px 6px 10px}
+.screen{position:relative;flex:1;min-height:130px;background:linear-gradient(#0d0912,#150f1c);border:1px solid var(--edge);border-radius:18px;padding:14px 20px;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-end;overflow:hidden;box-shadow:inset 0 0 40px #000,0 0 24px rgba(179,18,31,.18)}
+.expr{color:var(--ghost);font-size:1.1rem;min-height:1.5em;font-style:italic;word-break:break-all;text-align:right}
+.val{font-size:3.2rem;line-height:1.1;font-weight:700;color:var(--pumpkin);text-shadow:0 0 14px rgba(255,122,26,.55);word-break:break-all;text-align:right}
+.val.boom{animation:boom .5s}
+.val.cursed{color:var(--blood);text-shadow:0 0 16px rgba(179,18,31,.8)}
+.keys{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-top:14px;flex:2.3}
+button{font:inherit;font-size:1.55rem;color:var(--bone);cursor:pointer;min-height:58px;border:1px solid var(--edge);background:linear-gradient(var(--stone),var(--stone2));border-radius:50% 50% 12px 12px/34% 34% 12px 12px;box-shadow:0 4px 0 #07040a;transition:transform .08s,box-shadow .08s}
+button:active{transform:translateY(3px);box-shadow:0 1px 0 #07040a}
+button:focus-visible{outline:2px solid var(--pumpkin);outline-offset:2px}
+.fn{color:var(--ghost)}
+.op{background:linear-gradient(var(--blood),var(--blood2));border-color:#7d0f18;color:#ffe9e4}
+.eq{background:linear-gradient(#ff9a3d,#d9560a);border-color:#ff9a3d;color:#1a0b02;font-weight:700}
+@keyframes flicker{0%,100%{opacity:.22}45%{opacity:.18}50%{opacity:.27}55%{opacity:.16}80%{opacity:.24}}
+@keyframes boom{0%{transform:scale(1.12);opacity:.2}40%{opacity:1}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.moon,.val.boom{animation:none}button{transition:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="moon"></div>
+  <div class="title">CRYPT CALC</div>
+  <div class="screen"><div class="expr" id="expr"></div><div class="val" id="val">0</div></div>
+  <div class="keys" id="keys"></div>
+</div>
+<script>
+const layout=[["AC","fn"],["⌫","fn"],["%","fn"],["÷","op"],["7"],["8"],["9"],["×","op"],["4"],["5"],["6"],["−","op"],["1"],["2"],["3"],["+","op"],["±","fn"],["0"],["."],["=","eq"]];
+const names={"÷":"divide","×":"multiply","−":"minus","+":"plus","=":"equals","⌫":"backspace","AC":"clear","±":"toggle sign","%":"percent"};
+let cur="0",prev=null,op=null,fresh=false,exprText="",boom=false;
+const $=id=>document.getElementById(id);
+function show(){
+  const v=$("val"),bad=cur==="Error";
+  v.textContent=bad?"☠ Cursed":cur;
+  v.classList.toggle("cursed",bad);
+  const l=v.textContent.length;v.style.fontSize=l>12?"1.8rem":l>8?"2.4rem":"3.2rem";
+  $("expr").textContent=exprText;
+  if(boom){v.classList.remove("boom");void v.offsetWidth;v.classList.add("boom");boom=false}
+}
+function calc(a,b,o){a=parseFloat(a);b=parseFloat(b);
+  const r=o==="+"?a+b:o==="−"?a-b:o==="×"?a*b:b===0?NaN:a/b;
+  return isFinite(r)?String(parseFloat(r.toPrecision(12))):"Error"}
+function press(k){
+  if(navigator.vibrate)navigator.vibrate(8);
+  if(cur==="Error")k==="AC"||(k=/\d/.test(k)?k:"AC");
+  if(/\d/.test(k)){if(fresh||cur==="0"){cur=k;fresh=false}else if(cur.length<15)cur+=k}
+  else if(k==="."){if(fresh){cur="0.";fresh=false}else if(!cur.includes("."))cur+="."}
+  else if(k==="AC"){cur="0";prev=null;op=null;exprText="";fresh=false}
+  else if(k==="⌫"){if(!fresh)cur=cur.length>1&&!(cur.length===2&&cur[0]==="-")?cur.slice(0,-1):"0"}
+  else if(k==="±"){if(cur!=="0")cur=cur[0]==="-"?cur.slice(1):"-"+cur}
+  else if(k==="%"){cur=String(parseFloat((parseFloat(cur)/100).toPrecision(12)));fresh=true}
+  else if(k==="="){if(op!==null){const r=calc(prev,cur,op);exprText=prev+" "+op+" "+cur+" =";cur=r;prev=null;op=null;fresh=true;boom=true}}
+  else{if(op!==null&&!fresh){prev=calc(prev,cur,op);cur=prev}else prev=cur;op=k;exprText=prev+" "+k;fresh=true}
+  show();
+}
+layout.forEach(([k,c])=>{const b=document.createElement("button");b.textContent=k;if(c)b.className=c;
+  b.setAttribute("aria-label",names[k]||k);b.onclick=()=>press(k);$("keys").appendChild(b)});
+document.addEventListener("keydown",e=>{
+  const m={"*":"×","/":"÷","-":"−","Enter":"=","Backspace":"⌫","Escape":"AC"},k=m[e.key]||e.key;
+  if(/^[0-9.+%=]$/.test(k)||["×","÷","−","⌫","AC"].includes(k)){e.preventDefault();press(k)}});
+show();
+if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+</script>
+</body>
+</html>
